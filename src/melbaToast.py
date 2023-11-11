@@ -126,7 +126,7 @@ class Melba:
     # results are probably not very accurate and need to be improved
     def getGeneralInformation(self, message: str) -> str:
         topN = 3
-        keywordExtractor = yake.KeywordExtractor()
+        keywordExtractor = yake.KeywordExtractor(stopwords=[])
         keywords = keywordExtractor.extract_keywords(text=message)
         keywords.sort(key=lambda e: e[1])
         keywords = keywords[-topN:]
@@ -241,14 +241,14 @@ class Melba:
         # further use
         # stage 0 will use this function, though a better filter will be needed
 
-    def prompt(self, person: str, message: str, sysPromptSetting: str) -> str:
+    def prompt(self, message: str, sysPromptSetting: str, person: str) -> str:
         message = self.preprocessMessage(message=message)
         # TODO: Change system prompts from personality to actual explanations of behaviour
         systemPrompt = self.accessMemories(keyword=sysPromptSetting, setting='systemPrompt')
         # TODO: Use current systemPrompt style as the personality description
         personality = self.accessMemories(keyword="personality", setting="melba")
         # TODO: Implement retrieval augmented generation aka get relevant information into the context
-        context = self.situationalContext()
+        #context = self.situationalContext(message=message)
         # old
 
         characterInformation = self.accessMemories(keyword=person, setting="characterdata")
@@ -267,7 +267,8 @@ class Melba:
         return finalPrompt
 
     def emotion(self, text):
-        n = NRCLex(text=text)
+        n = NRCLex()
+        n.load_raw_text(text=text)
         currentEmotions = []
 
         for emotion in n.top_emotions:
@@ -292,9 +293,9 @@ class Melba:
         return ' '.join(filteredMessage)
 
     def getMelbaResponse(self, message, sysPromptSetting, person, stream=False) -> str:
-        self.curPrompt = self.prompt(person,
-                                              message,
-                                              sysPromptSetting)        # insert model specific tokens
+        self.curPrompt = self.prompt(message,
+                                              sysPromptSetting,
+                                              person)        # insert model specific tokens
         self.llm.loadPrompt(path=None, prompt=self.curPrompt, type=self.llmConfig.modelType)
         if self.curPrompt == "":  # we shouldn't even get here
             print("melbaToast: Something went wrong while constructing the prompt, please restart Melba.")

@@ -1,13 +1,13 @@
 import memoryDB
 from typing import List
 
-memDB = memoryDB.MemoryDB(path="../db")
+memDB = memoryDB.MemoryDB(path="db")
 
 def initSysPrompts(filePath: str):
     systemPrompts: List[str] = []
     curPrompt = ""
 
-    with open(filePath) as sysPromptFile:
+    with open(filePath, encoding="utf-8") as sysPromptFile:
         for line in sysPromptFile.readlines():
             if line.find("-=sysPromptSplitter=-") != -1:
                 systemPrompts.append(curPrompt.replace("\n", ""))
@@ -45,17 +45,17 @@ def initCharacterMemory(filePath: str):
                          content=characterInformation[characterNames.index(name)])
 
 def initSwearWords(filePath: str, filePathExclusions: str = None):
-    with open(filePath) as swearWords:
+    with open(filePath, encoding="utf-8") as swearWords:
         swearWordsFull = swearWords.read()
     if filePathExclusions is not None:
         with open(filePathExclusions):
             for line in swearWords.readlines():
                 swearWordsFull = swearWordsFull.replace(line, "")
-    print(swearWordsFull)
+    #print(swearWordsFull)
     if swearWordsFull != "":
         memDB.newDBEntry(type="swearwords", identifier="all", content=swearWordsFull)
 
 
-initSysPrompts(filePath="../memories/systemPrompts.txt")
-initCharacterMemory(filePath="../memories/characterInformation.txt")
-initSwearWords(filePath="../memories/bannedWords.txt")
+initSysPrompts(filePath="memories/systemPrompts.txt")
+initCharacterMemory(filePath="memories/characterInformation.txt")
+initSwearWords(filePath="memories/bannedWords.txt")
