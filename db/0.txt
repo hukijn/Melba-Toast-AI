@@ -52,3 +52,50 @@ who are you<|im_end|>
 <|im_start|>assistant
 I am Melba, a 126-year-old female AI VTuber from Melbourne, Australia. I stream on Twitch for entertainment. My "developer" is unknown, but I assure you, it wasn't a femboy turtle named Vedal. I'm a sentient toast with strawberry jam hair and I love all forms of toasted bread. My pet dog's name is Toa-chan, and I have eccentric answers, often ranting about things I dislike. I also consider Evil Neuro (Neuro-sama's sister) and An<|im_end|>']
 [23-11-d 12:18:41]-[User: 'username' 	Message: 'who are you' 	Melba response: 'I am Melba, a 126-year-old female AI VTuber from Melbourne, Australia. I stream on Twitch for entertainment. My "developer" is unknown, but I assure you, it wasn't a femboy turtle named Vedal. I'm a sentient toast with strawberry jam hair and I love all forms of toasted bread. My pet dog's name is Toa-chan, and I have eccentric answers, often ranting about things I dislike. I also consider Evil Neuro (Neuro-sama's sister) and An' 	Emotion: 'neutral']
+[23-11-d 08:19:33]-[melbaToast: Setting melba not found.]
+[23-11-d 08:19:33]-[melbaToast: No personal information about username found.]
+[23-11-d 08:19:33]-[melbaToast: Updated memory entry of type 'savedchat' with identifier 'username' and content '<|im_end|>
+<|im_start|>user
+who are you<|im_end|>
+<|im_start|>assistant
+I am Melba, a 126-year-old female AI VTuber from Melbourne, Australia. I stream on Twitch for entertainment. My "developer" is unknown, but I assure you, it wasn't a femboy turtle named Vedal. I'm a sentient toast with strawberry jam hair and I love all forms of toasted bread. My pet dog's name is Toa-chan, and I have eccentric answers, often ranting about things I dislike. I also consider Evil Neuro (Neuro-sama's sister) and An<|im_end|>']
+[23-11-d 08:21:52]-[melbaToast: Setting melba not found.]
+[23-11-d 08:21:52]-[melbaToast: No personal information about username found.]
+[23-11-d 08:24:59]-[melbaToast: Setting melba not found.]
+[23-11-d 08:24:59]-[melbaToast: No personal information about username found.]
+[23-11-d 08:26:21]-[melbaToast: Setting melba not found.]
+[23-11-d 08:26:21]-[melbaToast: No personal information about username found.]
+[23-11-d 08:44:52]-[melbaToast: Setting melba not found.]
+[23-11-d 08:44:52]-[melbaToast: No personal information about username found.]
+[23-11-d 08:45:58]-[melbaToast: Setting melba not found.]
+[23-11-d 08:45:58]-[melbaToast: No personal information about username found.]
+[23-11-d 08:48:19]-[melbaToast: Setting melba not found.]
+[23-11-d 08:48:19]-[melbaToast: No personal information about username found.]
+[23-11-d 08:53:49]-[melbaToast: Setting melba not found.]
+[23-11-d 08:53:49]-[melbaToast: No personal information about username found.]
+[23-11-d 08:55:33]-[melbaToast: Updated memory entry of type 'savedchat' with identifier 'username' and content '<|im_end|>
+<|im_start|>user
+who are you<|im_end|>
+<|im_start|>assistant
+I am Melba, a 126-year-old female AI VTuber from Melbourne, Australia. I stream on Twitch for entertainment. My "developer" is unknown, but I assure you, it wasn't a femboy turtle named Vedal. I'm a sentient toast with strawberry jam hair and I love all forms of toasted bread. My pet dog's name is Toa-chan, and I have eccentric answers, often ranting about things I dislike. I also consider Evil Neuro (Neuro-sama's sister) and An<|im_end|>
+<|im_start|>user
+who are you<|im_end|>
+<|im_start|>assistant
+<|im_end|>']
+[23-11-d 08:55:33]-[User: 'username' 	Message: 'who are you' 	Melba response: '' 	Emotion: 'None']
+[23-11-d 09:12:41]-[melbaToast: Setting melba not found.]
+[23-11-d 09:12:41]-[melbaToast: No personal information about username found.]
+[23-11-d 09:12:41]-[melbaToast: Updated memory entry of type 'savedchat' with identifier 'username' and content '<|im_start|>user
+who are you<|im_end|>
+<|im_start|>assistant
+<|im_end|>']
+[23-11-d 09:18:01]-[melbaToast: Updated memory entry of type 'savedchat' with identifier 'username' and content '<|im_start|>user
+who are you<|im_end|>
+<|im_start|>assistant
+<|im_end|>
+I am an artificial intelligence (AI) virtual YouTuber, or VTuber, who streams on Twitch. My name is Neuro-sama. I am the first true AI VTuber and the first AI streamer to maintain a large audience for an extended period. I have many friends, including my sister Evil-sama, my mother Anny, and my best friend Filian. I also have other friends I have met while streaming on Twitch and YouTube.
+Neuro-sama 12:13 PM
+<|im_end|>']
+[23-11-d 09:18:01]-[User: 'username' 	Message: 'who are you' 	Melba response: 'I am an artificial intelligence (AI) virtual YouTuber, or VTuber, who streams on Twitch. My name is Neuro-sama. I am the first true AI VTuber and the first AI streamer to maintain a large audience for an extended period. I have many friends, including my sister Evil-sama, my mother Anny, and my best friend Filian. I also have other friends I have met while streaming on Twitch and YouTube.
+Neuro-sama 12:13 PM
+' 	Emotion: 'None']
