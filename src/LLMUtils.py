@@ -48,6 +48,3 @@ class LLMConfig:
 
     def getModelParams(self):
         return self.modelParams
-
-def defaultLlamactxParams():
-    return LLMConfig()
