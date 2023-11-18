@@ -79,7 +79,7 @@ class LlamaModel:
     def warnAndExit(self, function, errorMessage):
         raise RuntimeError(f"LLMCore: Error in function: '{function}'. Following error message was provided: '{errorMessage}'\n")
 
-    def tokenizeFull(self, input: str, bos: bool = False, special: bool = False) -> List[int]:   # Possibly further abstract by adding single
+    def tokenizeFull(self, input: str, bos: bool = False, special: bool = True) -> List[int]:   # Possibly further abstract by adding single
         tokens = (llama_cpp.llama_token * self.nCtx)()              # token, tokenization
         newTokens = llama_cpp.llama_tokenize(model=self.model,
                                              text=input.encode("utf8"),
@@ -135,21 +135,16 @@ class LlamaModel:
         candidates.data = candidatesData.ctypes.data_as(llama_cpp.llama_token_data_p)
         candidates.sorted = llama_cpp.c_bool(False)
         candidates.size = llama_cpp.c_size_t(self.nVocab)
-        '''
-        # actually sample the token
-        llama_cpp.llama_sample_repetition_penalty(ctx=self.context,
-                                                  candidates=llama_cpp.ctypes.byref(candidates),
-                                                  last_tokens_data=lastNTokensData,
-                                                  last_tokens_size=lastNTokensSize,
-                                                  penalty=self.parameters.repeat_penalty)
 
-        llama_cpp.llama_sample_frequency_and_presence_penalties(ctx=self.context,
-                                                                candidates=llama_cpp.ctypes.byref(candidates),
-                                                                last_tokens_data=lastNTokensData,
-                                                                last_tokens_size=lastNTokensSize,
-                                                                alpha_presence=self.parameters.presence_penalty,
-                                                                alpha_frequency=self.parameters.frequency_penalty)
-        '''
+        # actually sample the token
+        llama_cpp.llama_sample_repetition_penalties(ctx=self.context,
+                                                    candidates=llama_cpp.ctypes.byref(candidates),
+                                                    last_tokens_data=lastNTokensData,
+                                                    penalty_last_n=lastNTokensSize,
+                                                    penalty_freq=self.parameters.frequency_penalty,
+                                                    penalty_repeat=self.parameters.repeat_penalty,
+                                                    penalty_present=self.parameters.presence_penalty)
+
         if self.parameters.temperature == 0.0:
             id = llama_cpp.llama_sample_token_greedy(ctx=self.context,
                                                      candidates=llama_cpp.ctypes.byref(candidates))
@@ -347,8 +342,10 @@ class LlamaModel:
             self._promptTemplate = f"{self.inputPrefix}user\n[inputText]{self.inputSuffix}\n" \
                                   f"{self.inputPrefix}assistant\n"
 
-    def promptTemplate(self, inputText: str = ""):
-        return self._promptTemplate.replace("[inputText]", inputText)
+    def promptTemplate(self, inputText: str):
+        prompt = self._promptTemplate.replace("[inputText]", inputText)
+        print("Input text:" + inputText)
+        return prompt
 
     def manipulatePrompt(self, new, setting):
         pass    # add some functionality to mess with the prompt during runtime
@@ -366,7 +363,7 @@ class LlamaOrig:
         self.parameters = params
         self.llama = Llama(model_path=self.parameters.modelPath,
                            main_gpu=self.parameters.mainGPU,
-                           n_gpu_layers=-1,
+                           n_gpu_layers=30,
                            n_ctx=1024,
                            seed=int(randint(0, int(time()))),
                            n_threads=16)
@@ -431,12 +428,14 @@ class LlamaOrig:
             self.systemPromptSplitter = "<|im_end|>"
             self.systemPromptPrefix = "<|im_start|>system"
             self.inputPrefix = "<|im_start|>"
-            self.inputPostfix = "<|im_end|>"
+            self.inputSuffix = "<|im_end|>"
+            self._promptTemplate = f"{self.inputPrefix}user\n[inputText]{self.inputSuffix}\n" \
+                                  f"{self.inputPrefix}assistant\n"
 
-    def promptTemplate(self):
-        template = f"{self.inputPrefix}[inputName]:\n[inputText]{self.inputPostfix}\n"
-        template += f"{self.inputPrefix}[outputName]:\n"
-        return template
+    def promptTemplate(self, inputText: str):
+        prompt = self._promptTemplate.replace("[inputText]", inputText)
+        print("Input text:" + inputText)
+        return prompt
 
     def reset(self):
         pass # placeholder

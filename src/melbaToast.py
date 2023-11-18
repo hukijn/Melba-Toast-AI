@@ -1,4 +1,4 @@
-from LLMCore import LlamaModel
+from LLMCore import LlamaOrig
 from LLMUtils import LLMConfig, defaultLlamactxParams
 from memoryDB import MemoryDB
 from dataclasses import dataclass
@@ -19,15 +19,18 @@ class StrIntPair:
 
 class Melba:
     def __init__(self, modelPath: str, databasepath: str, llmconfig: LLMConfig = None, logPath: str = None):
-        self.llmConfig = self.defaultConfig() if llmconfig is None else llmconfig
+        self.defaultConfig() if llmconfig is None else llmconfig
         self.llmConfig.modelPath = modelPath
         self.stage = 0
 
-        self.llm = LlamaModel(self.llmConfig)
-        self.logger = Logger(logpath=logPath)
+        self.llm = LlamaOrig(self.llmConfig)
         self.memory = Memory(databasePath=databasepath, logPath=logPath)
+        self.context = Context(memoryDB=self.memory)
+        self.utils = MelbaTools(memoryDB=self.memory)
+        self.logger = Logger(logPath)
         self.emotionHandler = EmotionHandler()
-        self.utils = Utils(memoryDB=self.memory.memoryDB)
+
+        self.llm.loadPrompt(path=None, prompt="", type=self.llmConfig.modelType)
 
     def defaultConfig(self):
         self.llmConfig = defaultLlamactxParams()
@@ -37,16 +40,15 @@ class Melba:
         self.llmConfig.modelType = "openhermes-mistral"
         self.llmConfig.antiPrompt.append("<|im_end|>")
         self.llmConfig.antiPrompt.append("<|im_start|>")
-        self.llmConfig.n_predict = 128
+        self.llmConfig.n_predict = 64
         self.llmConfig.mirostat = 2
         self.llmConfig.frequency_penalty = 0.8
         self.llmConfig.top_p = 0.60
         self.llmConfig.top_k = 25
         self.llmConfig.temperature = 0.75
         self.llmConfig.nOffloadLayer = 100
-        self.llmConfig.mainGPU = 0
+        self.llmConfig.mainGPU = 1
         self.llmConfig.repeat_penalty = 1.2
-        return self.llmConfig
 
     def getCurrentConfig(self):
         return self.llmConfig
@@ -63,56 +65,52 @@ class Melba:
 
         self.llm.update(newconfig)
 
-    def prompt(self, person: str, message: str, sysPromptSetting: str) -> str:
+    def prompt(self, person: str, message: str) -> str:
         message = self.utils.preprocessMessage(message=message)
-        # TODO: Change system prompts from personality to actual explanations of behaviour
-        systemPrompt = self.memory.accessMemories(keyword=sysPromptSetting, setting='systemPrompt')
-        # TODO: Use current systemPrompt style as the personality description
-        personality = self.memory.accessMemories(keyword="personality", setting="melba")
+        if message == "":
+            return ""
+        systemprompt = self.memory.systemPrompt()
+        personality = self.memory.personality()
+
         # TODO: Implement retrieval augmented generation aka get relevant information into the context
-        #context = self.situationalContext()
-        # old
+        context = ""
+        pastconversation = self.memory.savedChat(username=person)
 
-        characterInformation = self.memory.accessMemories(keyword=person, setting="characterdata")
-        generalInformation = f"{self.memory.getGeneralInformation(message=message)}\n" # TODO: Make it happen
-        pastConversation = self.memory.accessMemories(keyword=person, setting='savedchat')
-
-        #self.convoStyle = self.llm.promptTemplate(inputText=message)
-
-        finalPrompt = (f"{systemPrompt}" +
-                       f"{characterInformation}\n" +
-                       f"{generalInformation}" +                               # TODO: implement information retrieval
-                       f"{pastConversation}\n") # TODO: for certain keywords
+        self.convoStyle = self.llm.promptTemplate(inputText=message)
+        print(message)
+        finalPrompt = (f"{self.llm.systemPromptPrefix}\n{systemprompt}" +
+                       f"{self.llm.systemPromptSplitter}\n"
+                       f"{self.llm.systemPromptPrefix}\n{personality}" +
+                       f"{self.llm.systemPromptSplitter}\n"
+                       f"{pastconversation}\n" +
+                          self.convoStyle)
 
         finalPrompt = finalPrompt.replace("{llmName}", self.llmConfig.modelName)
         return finalPrompt
 
-    def getMelbaResponse(self, message, sysPromptSetting, person, stream=False) -> str:
-        self.curPrompt = self.prompt(person,
-                                              message,
-                                              sysPromptSetting)        # insert model specific tokens
+    def getMelbaResponse(self, message, person, stream=False) -> str:
+        self.curPrompt = self.prompt(person=person, message=message)        # insert model specific tokens
+        if self.curPrompt == "":
+            return json.dumps({'response': "", 'emotions' : ['neutral']})
         self.llm.loadPrompt(path=None, prompt=self.curPrompt, type=self.llmConfig.modelType)
-        
 
         if self.curPrompt == "":  # we shouldn't even get here
-            print("melbaToast: Something went wrong while constructing the prompt, please restart Melba.")
-
-        print(f"\nmelbaToast: Current prompt is:\n -[{self.curPrompt}]-\n")
+            self.logger.log(message="melbaToast: Something went wrong while constructing the prompt, please restart Melba.")
+        self.logger.log(message=f"melbaToast: Current prompt is: '{self.curPrompt}'\n")
 
         response = self.llm.response(stream=False)
         self.emotionHandler.evaluateEmotion(text=response)
-
+        emotion = self.emotionHandler.getEmotion()
         filteredResponse = self.utils.filterMessage(message=response)
 
-        self.memory.updateMemory(type="savedchat", identifier=person,
-                          newContent=(f"{self.memory.accessMemories(keyword=person, setting='savedchat')}\n"
-                                       + response + self.llm.inputSuffix))
+        self.memory.saveConversation(person=person,
+                                     conversation=f"{self.memory.savedChat(username=person)}\n"
+                                                  f"{self.convoStyle + response + self.llm.inputSuffix}")
         self.llm.reset()  # needs to be improved
-        self.logger.log(message=f"User: '{person}' \tMessage: '{message}' \tMelba response: '{response}' \tEmotion: "
-                         f"'{self.emotionHandler.getEmotion()}'")
+        self.logger.log(message=f"User: '{person}'\tMessage: '{message}'\tMelba response: '{response}'"
+                                f"\tEmotions: "f"'{emotion}'")
 
-        actualResponse = {'response' : filteredResponse, 'emotions' : self.emotionHandler.getEmotion()}
-        return json.dumps(actualResponse)
+        return json.dumps({'response' : filteredResponse, 'emotions' : emotion})
 
     def regenerateResponse(self, stream=False):
         if stream:
@@ -127,82 +125,51 @@ class Memory:
         self.memoryDB = MemoryDB(databasePath)
         self.logger = Logger(logPath)
 
-    def getSavedChat(self, username: str):
-        response = self.memoryDB.metadataQueryDB(type="savedchat", identifier=username)
+    def accessMemories(self, type: str, identifier: str, vectorSearch: bool = False) -> str:
+        response = self.memoryDB.metadataQueryDB(type=type, identifier=identifier) if not vectorSearch else\
+                   json.loads(
+                       json.dumps(self.memoryDB.vectorQueryDB(queries=[identifier], filter=type, nResults=1))
+                   )['documents']
 
         if response == "":
-            self.logger.log(message=f"melbaToast: No saved chat with username {username} found.")
-        else:
-            newlines = response.count('\n')
-            if newlines >= 8:
-                new = '\n'.join(response.split('\n')[5:])
-                self.updateMemory(type="savedchat", identifier=username, newContent=new)
-                response = new
+            self.logger.log(message=f"melbaToast: No '{type}' memory with identifier '{identifier}' found.")
 
         return response
 
-    def getSystemprompt(self, queries: List[str]):
-        response = json.loads(
-            json.dumps(self.memoryDB.vectorQueryDB(queries=queries, filter={"type": {"$eq": "systemPrompt"}}))
-        )
-        response = response['documents']
+    def savedChat(self, username: str):
+        return self.accessMemories(type="savedChat", identifier=username)
 
-        if response == "":
-            self.logger.log(message=f"melbaToast: No system prompt with queries '{queries}' found, loading generic.")
-            response = self.memoryDB.metadataQueryDB(type="systemPrompt", identifier="generic")
+    def systemPrompt(self):
+        response = self.accessMemories(type="systemPrompt", identifier="Melba Toast", vectorSearch=True)[0][0]
+        return self.accessMemories(type="systemPrompt", identifier="generic") if response == "" else response
 
-        return response[0][0]
+    def personality(self):
+        return self.accessMemories(type="personality", identifier="generic")
 
-    def getPersonalInformation(self, name: str):
-        response = self.memoryDB.metadataQueryDB(type="characterdata", identifier=name)
-
-        if response == "":
-            self.logger.log(message=f"melbaToast: No personal information about {name} found.")
-
-        return response
+    def personalInformation(self, name: str):
+        return self.accessMemories(type="personalinformation", identifier=name)
 
     def updateMemory(self, type: str, identifier: str, newContent: str):
         self.memoryDB.updateOrCreateDBEntry(type=type, identifier=identifier, content=newContent)
         self.logger.log(message=f"melbaToast: Updated memory entry of type '{type}' "
                                 f"with identifier '{identifier}' and content '{newContent}'")
 
+    def saveConversation(self, person: str, conversation: str):
+        lines = conversation.count("\n")  # TODO: change to more accurate way of measuring message count
+        if lines > 8:
+            lines = '\n'.join(conversation.split('\n')[8:])
+        else:
+            lines = conversation
+        self.updateMemory(type="savedChat", identifier=person, newContent=f"{lines}")
+
     def wipeDB(self):
         self.memoryDB.chromaClient.reset()
         self.logger.log(message="melbaToast: MemoryDB fully wiped.")
 
-    # TODO: delete this function later on
-    def getGeneralInformation(self, message: str) -> str:
-        topN = 3
-        keywordExtractor = yake.KeywordExtractor(stopwords=[])
-        keywords = keywordExtractor.extract_keywords(text=message)
-        keywords.sort(key=lambda e: e[1])
-        keywords = keywords[-topN:]
-        topKeywords = []
-        for kwPair in keywords:
-            topKeywords.append(kwPair[0])
-        generalInfo = json.loads(json.dumps(self.memoryDB.vectorQueryDB(queries=topKeywords)))
-        generalInfo = generalInfo['documents'][0][0]
-        return generalInfo
-
-    def accessMemories(self, keyword: str, setting: str) -> str:
-        if setting == "savedchat":
-            res = self.getSavedChat(username=keyword)
-        elif setting == "systemPrompt":
-            res = self.getSystemprompt(queries=[keyword])
-        elif setting == "characterdata":
-            res = self.getPersonalInformation(name=keyword)
-        elif setting == "generalinformation":  # TODO: delete this setting later on
-            res = self.getGeneralInformation(keyword=keyword)
-        else:
-            self.logger.log(message=f"melbaToast: Setting {setting} not found.")
-            res = ""
-
-        return res
-
 
 class Context:
-    def __init__(self, memoryDB: MemoryDB):
-        self.memoryDB = memoryDB
+    def __init__(self, memoryDB: Memory):
+        self.memoryDB = memoryDB.memoryDB
 
     # TODO: increase search accuracy and response volume (reimplementation)
     def returnWebContent(self, searchQuery: str = None) -> List[str]:
@@ -215,43 +182,6 @@ class Context:
         if vectorstorageresponse == "":
             webResponse = self.returnWebContent(searchQuery=message) # searchQuery will be extracted keywords
         return "placeholder"
-
-    def characterFrequency(self, sentence: str) -> List[StrIntPair]:
-        charfreq: List[StrIntPair] = []
-
-        for c in sentence:
-            exists = False
-            for pair in charfreq:
-                if pair.string == c:
-                    pair.integer += 1
-                    exists = True
-            if not exists:
-                pair = StrIntPair(c, 1)
-                charfreq.append(pair)
-
-        return charfreq
-
-    def characterProbability(self, frequencies: List[StrIntPair], target: str):  # this function should likely be
-        targetindex = 0                                                          # swapped out for something more
-        wordsum = 0                                                                  # accurate and performant
-
-        iterator = 0
-        for field in frequencies:
-            wordsum += field.integer
-            targetindex = iterator if field.string == target else targetindex
-            iterator += 1
-
-        return frequencies[targetindex].integer/wordsum
-
-    def sentenceEntropy(self, sentence: str):
-        frequencies: List[StrIntPair] = self.characterFrequency(sentence=sentence)
-        entropy = 0.0
-
-        for field in frequencies:
-            charprob = self.characterProbability(frequencies=frequencies, target=field.string)
-            entropy += charprob * math.log2(charprob)
-
-        return -entropy
 
 
 class EmotionHandler:
@@ -272,12 +202,48 @@ class EmotionHandler:
         return self.currentEmotion
 
 
-class Utils:
-    def __init__(self, memoryDB: MemoryDB):
-        self.memoryDB = memoryDB
+class MelbaTools:
+    def __init__(self, memoryDB: Memory):
+        self.memoryDB = memoryDB.memoryDB
         self.swearWords = ""  # TODO: list instead of string
         self.maliciousWords = ""  # TODO: List instead of string
-        self.contex = Context(memoryDB=memoryDB)
+
+    def characterFrequency(self, sentence: str) -> List[StrIntPair]:
+        charfreq: List[StrIntPair] = []
+
+        for c in sentence:
+            exists = False
+            for pair in charfreq:
+                if pair.string == c:
+                    pair.integer += 1
+                    exists = True
+            if not exists:
+                pair = StrIntPair(c, 1)
+                charfreq.append(pair)
+
+        return charfreq
+
+    def characterProbability(self, frequencies: List[StrIntPair], target: str):  # this function should likely be
+        targetindex = 0                                                          # swapped out for something more
+        wordsum = 0                                                              # accurate and performant
+
+        iterator = 0
+        for field in frequencies:
+            wordsum += field.integer
+            targetindex = iterator if field.string == target else targetindex
+            iterator += 1
+
+        return frequencies[targetindex].integer/wordsum
+
+    def sentenceEntropy(self, sentence: str):
+        frequencies: List[StrIntPair] = self.characterFrequency(sentence=sentence)
+        entropy = 0.0
+
+        for field in frequencies:
+            charprob = self.characterProbability(frequencies=frequencies, target=field.string)
+            entropy += charprob * math.log2(charprob)
+
+        return -entropy
 
     def isSwearWord(self, word: str) -> bool:
         if self.swearWords == "":
@@ -310,7 +276,7 @@ class Utils:
         return ' '.join(filteredmessage)
 
     def preprocessMessage(self, message: str) -> str:
-        if self.contex.sentenceEntropy(sentence=message) > 3.0 and \
+        if self.sentenceEntropy(sentence=message) > 3.0 and \
                 self.maliciousWordsCount(words=message.split()) <= 0:
             return message
         return ""
@@ -331,5 +297,6 @@ class Logger:
             try:
                 with open(self.logPath, mode="a") as file:
                     file.write(f"\n[{datetime.utcnow().strftime('%y-%m-d %H:%M:%S')}]-[{message}]")
+                    print(message)
             except:
                 FileExistsError("File does not exist.")
